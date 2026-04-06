@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Client API - Products</title>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f0f0f; --surface: #1a1a1a; --border: #2e2e2e;
+      --accent: #00e5a0; --text: #f0f0f0; --muted: #888;
+      --get: #00e5a0; --post: #4fc3f7; --put: #ffd54f; --delete: #ef5350;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'Space Mono', monospace; min-height: 100vh; }
+    header { border-bottom: 1px solid var(--border); padding: 24px 40px; display: flex; align-items: center; gap: 16px; background: var(--surface); }
+    header .badge { background: var(--accent); color: #000; font-family: 'Syne', sans-serif; font-weight: 800; font-size: 11px; padding: 3px 10px; border-radius: 2px; letter-spacing: 2px; text-transform: uppercase; }
+    header h1 { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; }
+    header h1 span { color: var(--accent); }
+    .base-url { margin-left: auto; font-size: 12px; color: var(--muted); background: var(--bg); border: 1px solid var(--border); padding: 6px 14px; border-radius: 4px; }
+    .base-url span { color: var(--accent); }
+    main { max-width: 900px; margin: 40px auto; padding: 0 24px; display: flex; flex-direction: column; gap: 28px; }
+    .section { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; animation: fadeIn 0.4s ease both; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    .section:nth-child(1) { animation-delay: 0.05s; }
+    .section:nth-child(2) { animation-delay: 0.15s; }
+    .section:nth-child(3) { animation-delay: 0.25s; }
+    .section-header { display: flex; align-items: center; gap: 14px; padding: 16px 22px; background: var(--surface); border-bottom: 1px solid var(--border); }
+    .method-badge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 3px; letter-spacing: 1px; min-width: 52px; text-align: center; }
+    .method-get  { background: #00e5a020; color: var(--get); border: 1px solid #00e5a040; }
+    .method-post { background: #4fc3f720; color: var(--post); border: 1px solid #4fc3f740; }
+    .method-put  { background: #ffd54f20; color: var(--put); border: 1px solid #ffd54f40; }
+    .section-header .endpoint { font-size: 13px; color: var(--muted); }
+    .section-header .title { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700; margin-left: auto; }
+    .section-body { padding: 22px; background: var(--bg); }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group.full { grid-column: 1 / -1; }
+    label { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+    input, textarea { background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 10px 14px; border-radius: 5px; font-family: 'Space Mono', monospace; font-size: 13px; transition: border-color 0.2s; width: 100%; }
+    input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 70px; }
+    button { display: inline-flex; align-items: center; gap: 8px; padding: 10px 22px; border: none; border-radius: 5px; font-family: 'Space Mono', monospace; font-size: 13px; font-weight: 700; cursor: pointer; transition: opacity 0.2s, transform 0.1s; }
+    button:hover { opacity: 0.85; }
+    button:active { transform: scale(0.97); }
+    .btn-get  { background: var(--get);  color: #000; }
+    .btn-post { background: var(--post); color: #000; }
+    .btn-put  { background: var(--put);  color: #000; }
+    .response-box { margin-top: 18px; border: 1px solid var(--border); border-radius: 5px; overflow: hidden; display: none; }
+    .response-box.visible { display: block; }
+    .response-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: var(--surface); border-bottom: 1px solid var(--border); font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+    .status-ok { color: var(--get); }
+    .status-err { color: var(--delete); }
+    pre { padding: 16px; font-size: 12px; line-height: 1.7; color: #ccc; overflow-x: auto; max-height: 320px; overflow-y: auto; background: #0a0a0a; }
+    .spinner { width: 14px; height: 14px; border: 2px solid #000; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; display: none; }
+    button.loading .spinner { display: inline-block; }
+    button.loading .btn-text { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    footer { text-align: center; color: var(--muted); font-size: 11px; padding: 40px 0 24px; letter-spacing: 1px; }
+  </style>
+</head>
+<body>
+<header>
+  <div class="badge">API</div>
+  <h1>Products <span>Client</span></h1>
+  <div class="base-url">BASE URL: <span>http://127.0.0.1:8000/api</span></div>
+</header>
+<main>
+  <!-- GET -->
+  <div class="section">
+    <div class="section-header">
+      <span class="method-badge method-get">GET</span>
+      <span class="endpoint">/api/products</span>
+      <span class="title">Ambil Semua Produk</span>
+    </div>
+    <div class="section-body">
+      <button class="btn-get" onclick="getData(this)">
+        <span class="btn-text">↓ Fetch Products</span>
+        <span class="spinner"></span>
+      </button>
+      <div class="response-box" id="getBox">
+        <div class="response-header">Response <span id="getStatus"></span></div>
+        <pre id="getResult"></pre>
+      </div>
+    </div>
+  </div>
+  <!-- POST -->
+  <div class="section">
+    <div class="section-header">
+      <span class="method-badge method-post">POST</span>
+      <span class="endpoint">/api/products</span>
+      <span class="title">Tambah Produk Baru</span>
+    </div>
+    <div class="section-body">
+      <div class="form-grid">
+        <div class="form-group"><label>Name *</label><input id="postName" type="text" placeholder="Nama produk"/></div>
+        <div class="form-group"><label>Category *</label><input id="postCategory" type="text" placeholder="Kategori"/></div>
+        <div class="form-group"><label>Price *</label><input id="postPrice" type="number" placeholder="Harga"/></div>
+        <div class="form-group"><label>Stock *</label><input id="postStock" type="number" placeholder="Stok"/></div>
+        <div class="form-group full"><label>Description</label><textarea id="postDesc" placeholder="Deskripsi produk"></textarea></div>
+      </div>
+      <button class="btn-post" onclick="postData(this)">
+        <span class="btn-text">+ Submit Product</span>
+        <span class="spinner"></span>
+      </button>
+      <div class="response-box" id="postBox">
+        <div class="response-header">Response <span id="postStatus"></span></div>
+        <pre id="postResult"></pre>
+      </div>
+    </div>
+  </div>
+  <!-- UPDATE -->
+  <div class="section">
+    <div class="section-header">
+      <span class="method-badge method-put">PUT</span>
+      <span class="endpoint">/api/products/{id}</span>
+      <span class="title">Update Produk</span>
+    </div>
+    <div class="section-body">
+      <div class="form-grid">
+        <div class="form-group full"><label>Product ID *</label><input id="updateId" type="number" placeholder="ID produk yang ingin diupdate"/></div>
+        <div class="form-group"><label>Name</label><input id="updateName" type="text" placeholder="Nama baru"/></div>
+        <div class="form-group"><label>Category</label><input id="updateCategory" type="text" placeholder="Kategori baru"/></div>
+        <div class="form-group"><label>Price</label><input id="updatePrice" type="number" placeholder="Harga baru"/></div>
+        <div class="form-group"><label>Stock</label><input id="updateStock" type="number" placeholder="Stok baru"/></div>
+        <div class="form-group full"><label>Description</label><textarea id="updateDesc" placeholder="Deskripsi baru"></textarea></div>
+      </div>
+      <button class="btn-put" onclick="updateData(this)">
+        <span class="btn-text">✎ Update Product</span>
+        <span class="spinner"></span>
+      </button>
+      <div class="response-box" id="updateBox">
+        <div class="response-header">Response <span id="updateStatus"></span></div>
+        <pre id="updateResult"></pre>
+      </div>
+    </div>
+  </div>
+</main>
+<footer>TUGAS 2 — REST API CLIENT — AXIOS — LARAVEL</footer>
+<script>
+  const BASE = 'http://127.0.0.1:8000/api';
+  function setLoading(btn, state) { btn.classList.toggle('loading', state); btn.disabled = state; }
+  function showResponse(boxId, statusId, resultId, data, isOk) {
+    const box = document.getElementById(boxId);
+    box.classList.add('visible');
+    const statusEl = document.getElementById(statusId);
+    statusEl.textContent = isOk ? '✔ 200 OK' : '✖ Error';
+    statusEl.className = isOk ? 'status-ok' : 'status-err';
+    document.getElementById(resultId).textContent = JSON.stringify(data, null, 2);
+  }
+  async function getData(btn) {
+    setLoading(btn, true);
+    try {
+      const res = await axios.get(`${BASE}/products`);
+      showResponse('getBox', 'getStatus', 'getResult', res.data, true);
+    } catch(e) { showResponse('getBox', 'getStatus', 'getResult', e.response?.data || e.message, false); }
+    setLoading(btn, false);
+  }
+  async function postData(btn) {
+    setLoading(btn, true);
+    const payload = {
+      name: document.getElementById('postName').value,
+      category: document.getElementById('postCategory').value,
+      price: document.getElementById('postPrice').value,
+      stock: document.getElementById('postStock').value,
+      description: document.getElementById('postDesc').value,
+    };
+    try {
+      const res = await axios.post(`${BASE}/products`, payload);
+      showResponse('postBox', 'postStatus', 'postResult', res.data, true);
+    } catch(e) { showResponse('postBox', 'postStatus', 'postResult', e.response?.data || e.message, false); }
+    setLoading(btn, false);
+  }
+  async function updateData(btn) {
+    setLoading(btn, true);
+    const id = document.getElementById('updateId').value;
+    if (!id) { alert('ID produk wajib diisi!'); setLoading(btn, false); return; }
+    const payload = {};
+    const name  = document.getElementById('updateName').value;
+    const cat   = document.getElementById('updateCategory').value;
+    const price = document.getElementById('updatePrice').value;
+    const stock = document.getElementById('updateStock').value;
+    const desc  = document.getElementById('updateDesc').value;
+    if (name)  payload.name        = name;
+    if (cat)   payload.category    = cat;
+    if (price) payload.price       = price;
+    if (stock) payload.stock       = stock;
+    if (desc)  payload.description = desc;
+    try {
+      const res = await axios.put(`${BASE}/products/${id}`, payload);
+      showResponse('updateBox', 'updateStatus', 'updateResult', res.data, true);
+    } catch(e) { showResponse('updateBox', 'updateStatus', 'updateResult', e.response?.data || e.message, false); }
+    setLoading(btn, false);
+  }
+</script>
+</body>
+</html>
